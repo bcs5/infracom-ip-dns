@@ -18,36 +18,43 @@ class DNSPacket:
     self.alias = alias
     self.ip = ip
 
+MAXPACKETSZ = 512;
 def rcv_msg (socket): # return pickle
-  unpacker = struct.Struct('!i')  
-  packed_int = socket.recv(struct.calcsize('!i'));
-  msg_size = unpacker.unpack(packed_int)[0]
-  return pickle.loads(socket.recv(msg_size))
+  unpacker = struct.Struct('!i')
+  tot = unpacker.unpack(socket.recv(4))[0]
+  cur = 0
+  data_string = b""
+  while (cur < tot):
+    data = socket.recv(min(MAXPACKETSZ, tot-cur));
+    data_string += data
+    cur += min(MAXPACKETSZ, tot-cur);
+  return pickle.loads(data_string)
 
-def send_msg (socket, data_string): # msg = pickle.dumps(msg)
-  unpacker = struct.Struct('!i')  
-  packed_int = struct.pack("!i", sys.getsizeof(data_string))  
-  msg_size = unpacker.unpack(packed_int)[0]
-  socket.send(packed_int)
-  socket.send(data_string)  
+def send_msg (socket, data_string : str): # msg = pickle.dumps(msg)
+  tot = len(data_string)
+  socket.send(struct.pack("!i", tot));
+  cur = 0;
+  while (cur < tot):
+    data = data_string[cur:cur+MAXPACKETSZ]
+    socket.send(data)
+    cur += MAXPACKETSZ
   return
 
 DNS_HOST = "127.0.0.1"
 DNS_PORT = 5000
 
 def main():
-  with Socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
+  with Socket(socket.AF_INET, socket.SOCK_DGRAM) as server_socket:
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server_socket.bind((DNS_HOST, DNS_PORT))
-    server_socket.listen(1)
     print("server ready")
 
     while True:
-      with server_socket.accept()[0] as connection_socket:
-        print("dns request")
-        res = rcv_msg(connection_socket);
-        msg = handle(res);
-        send_msg(connection_socket, pickle.dumps(msg));
+        data_string, client = server_socket.recvfrom(1024)
+        print(client)
+        res = pickle.loads(data_string);
+        res = handle(res);
+        server_socket.sendto(pickle.dumps(res), client);
     
   return 0
   

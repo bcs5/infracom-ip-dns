@@ -1,21 +1,12 @@
 # infracom-ip-dns
 
-dns, udp, tcp
+python3 dns/dns.py
+python3 server/dns.py
+python3 client/client.py
 
-to add
 
-Client:
-
--> connect command
-
-ex: connect projectx.com
-
--> disconnect command
-
-ex: disconnect
-
--> commands non sensitive case
-
--> list == LIST == lIsT
-
--> UPD
+CMDs:
+connect projectx.com
+disconnect
+list
+get cp3.pdf [new_name]

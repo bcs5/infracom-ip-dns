@@ -14,7 +14,10 @@ import os
 class Command (Enum) :
   LIST = 1
   GET = 2
-  CLOSE = 3
+
+class State (Enum) :
+  CONNECTED = 1
+  DISCONNECTED = 2
 
 class DNSPacket:
   alias = ""
@@ -29,87 +32,118 @@ class ClientPacket:
 
 class ServerPacket:
   cmd = Command.GET
-  arr = [""]
   data = b""
 
-def recv_msg(socket): # return pickle
-  unpacker = struct.Struct('!i')
-  packed_int = socket.recv(struct.calcsize('!i'));
-  msg_size = unpacker.unpack(packed_int)[0]
-  return pickle.loads(socket.recv(msg_size))
+MAXPACKETSZ = 1512;
 
-def send_msg(socket, data_string): # msg = pickle.dumps(msg)
+def rcv_msg (socket): # return pickle
   unpacker = struct.Struct('!i')
-  packed_int = struct.pack("!i", sys.getsizeof(data_string))
-  msg_size = unpacker.unpack(packed_int)[0]
-  socket.send(packed_int)
-  socket.send(data_string)
+  tot = unpacker.unpack(socket.recv(4))[0]
+  cur = 0
+  data_string = b""
+  while (cur < tot):
+    data = socket.recv(min(MAXPACKETSZ, tot-cur));
+    data_string += data
+    cur += min(MAXPACKETSZ, tot-cur)
+  return pickle.loads(data_string)
+
+def send_msg (socket, data_string : str): # msg = pickle.dumps(msg)
+  tot = len(data_string)
+  socket.send(struct.pack("!i", tot))
+  cur = 0
+  while (cur < tot):
+    data = data_string[cur:cur+MAXPACKETSZ]
+    socket.send(data)
+    cur += MAXPACKETSZ
   return
 
 DNS_HOST = "127.0.0.1"
 DNS_PORT = 5000
 
-server_alias = "projectx.com"
-server_host = ""
 server_port = 2080
 
 
 def query_dns (alias):
-  dnssocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-  try:
-    dnssocket.connect((DNS_HOST, DNS_PORT));
-  except Exception:
-    pass
-
+  dnssocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
   res = DNSPacket(alias, "");
-  send_msg(dnssocket, pickle.dumps(res));
-  res = recv_msg(dnssocket);
+  data_string = pickle.dumps(res)
+  
+  dnssocket.sendto(pickle.dumps(res), (DNS_HOST, DNS_PORT));
+  data = dnssocket.recvfrom(1024)[0];
+  print("trying...")
+  if (data) :
+    res = pickle.loads(data)
   dnssocket.close()
   return res.ip
    
 run = True;
 try:
+  state = State.DISCONNECTED
   
-  while True:
-    server_host = query_dns("projectx.com");
-    print("...")
-    time.sleep(1)
-    if server_host:
-      break;
-  print("connected to " + server_host)
+  server_alias = "projectx.com"
+  server_host = ""
   while run :
-    arr = input().split();
-    cmd = arr[0]
-    param = ""
-    if (len(arr) == 2):
-      param = arr[1]
-    
-    msg = ClientPacket()
-    if (cmd == "LIST"):
-      msg.cmd = Command.LIST;
-    elif (cmd == "GET"):
-      msg.cmd = Command.GET
-      msg.param = param
-    elif (cmd == "CLOSE"):
-      msg.cmd = Command.CLOSE
-    
-    clientSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    try:
-      clientSocket.connect((server_host,server_port))
-    except Exception:
-      pass
-   
-    send_msg(clientSocket, pickle.dumps(msg))
-    res = recv_msg(clientSocket)
-    
-    clientSocket.close()
-    
-    if res.cmd == Command.GET: 
-      with open(msg.param, 'wb') as file:
-        file.write(res.data)
-    elif res.cmd == Command.LIST:
-      for x in res.arr:
-        print(x)
+  
+    if (state == State.DISCONNECTED):
+      indata = input().split()
+      if (len(indata) == 0):
+        continue
+      cmd = indata[0]
+      if (cmd == "connect"):
+        server_alias = indata[1]
+        server_host = query_dns(server_alias);
+        time.sleep(1)
+        if server_host:
+          state = state.CONNECTED
+          print("connected to " + server_host)
+          continue
+        else:
+          print("failed")
+    elif (state == State.CONNECTED):
+      indata = input().split()
+      if (len(indata) == 0):
+        continue
+      cmd = indata[0]
+      
+      msg = ClientPacket()
+      if (cmd == "list"):
+        msg.cmd = Command.LIST;
+      elif (cmd == "get"):
+        msg.cmd = Command.GET
+        msg.param = indata[1]
+      elif (cmd == "disconnect"):
+        state = State.DISCONNECTED
+        continue
+      else:
+        continue
+      
+      clientSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+      try:
+        clientSocket.connect((server_host,server_port))
+      except Exception:
+        pass
+      
+      print("sending...")
+      send_msg(clientSocket, pickle.dumps(msg))
+      print("receiving...")
+      res = rcv_msg(clientSocket)
+      
+      clientSocket.close()
+      if res.cmd == Command.GET:
+        if (not res.data) :
+          print("file not found.")
+          continue
+        filename = indata[1]
+        if (len(indata) > 2) :
+          filename = indata[2]
+        print("saving...")
+        with open(filename, 'wb') as file:
+          file.write(res.data)
+        print("safe!")
+      elif res.cmd == Command.LIST:
+        arr = pickle.loads(res.data);
+        for x in arr:
+          print(x)
     
 except KeyboardInterrupt:
   print("caught keyboard interrupt, exiting")
