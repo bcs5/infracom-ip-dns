@@ -1,45 +1,24 @@
 #!/usr/bin/env python3
 
 import sys
-import itertools
-import socket
-from socket import socket as Socket
+sys.path.append('..')
+from local.imports import *
 
-import struct
-import pickle
-from enum import Enum
-
-import os
-
-class Command (Enum) :
-  LIST = 1
-  GET = 2
-
-class DNSPacket:
-  alias = ""
-  ip = ""
-  def __init__(self, alias, ip):
-    self.alias = alias
-    self.ip = ip
-
-class ClientPacket:
-  cmd = Command.GET
-  param = ""
-
-class ServerPacket:
-  cmd = Command.GET
-  data = b""
-
-MAXPACKETSZ = 1512;
 def rcv_msg (socket): # return pickle
   unpacker = struct.Struct('!i')
-  tot = unpacker.unpack(socket.recv(4))[0]
+  tot = 0
+  try:
+    tot = unpacker.unpack(socket.recv(4))[0]
+  except Exception:
+    pass
+    print("The connection was over.")
+    return
   cur = 0
   data_string = b""
   while (cur < tot):
-    data = socket.recv(min(MAXPACKETSZ, tot-cur));
+    data = socket.recv(min(MAX_PACKETS, tot-cur));
     data_string += data
-    cur += min(MAXPACKETSZ, tot-cur);
+    cur += min(MAX_PACKETS, tot-cur);
   return pickle.loads(data_string)
 
 def send_msg (socket, data_string : str): # msg = pickle.dumps(msg)
@@ -47,9 +26,9 @@ def send_msg (socket, data_string : str): # msg = pickle.dumps(msg)
   socket.send(struct.pack("!i", tot));
   cur = 0;
   while (cur < tot):
-    data = data_string[cur:cur+MAXPACKETSZ]
+    data = data_string[cur:cur+MAX_PACKETS]
     socket.send(data)
-    cur += MAXPACKETSZ
+    cur += MAX_PACKETS
   return
 
 DNS_HOST = "127.0.0.1"
@@ -60,7 +39,7 @@ SERVER_HOST = "127.0.0.1"
 SERVER_PORT = 2080
 
 
-def register_dns ():
+def register_dns():
   dnssocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
   res = DNSPacket(SERVER_ALIAS, SERVER_HOST);
@@ -76,21 +55,25 @@ def register_dns ():
   return res.ip
   
 def main():
-  with Socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
-    server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    server_socket.bind((SERVER_HOST, SERVER_PORT))
-    server_socket.listen(1)
-    
-    while not register_dns():
-      print("trying")
-    print("server ready")
+  while not register_dns():
+    print("trying")
+  print("server ready")
+  while True:
+    with Socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
+      server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+      server_socket.bind((SERVER_HOST, SERVER_PORT))
+      server_socket.listen(1)
 
-    while True:
-      with server_socket.accept()[0] as connection_socket:
+      connection_socket, client_adress = server_socket.accept()
+
+      while True:
         print("client accepted")
-        res = rcv_msg(connection_socket);
+        res = rcv_msg(connection_socket)
+        if not res:
+          break
         msg = handle(res);
-        send_msg(connection_socket, pickle.dumps(msg));
+        send_msg(connection_socket, pickle.dumps(msg))
+      connection_socket.close()
         
   return 0
 def handle (msg):
@@ -116,6 +99,3 @@ def handle (msg):
 
 if __name__ == "__main__":
   sys.exit(main())
-  
-  
-
