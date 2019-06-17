@@ -33,7 +33,13 @@ class ServerPacket:
 MAXPACKETSZ = 1512;
 def rcv_msg (socket): # return pickle
   unpacker = struct.Struct('!i')
-  tot = unpacker.unpack(socket.recv(4))[0]
+  tot = 0
+  try:
+    tot = unpacker.unpack(socket.recv(4))[0]
+  except Exception:
+    pass
+    print("The connection was over.")
+    return
   cur = 0
   data_string = b""
   while (cur < tot):
@@ -76,21 +82,25 @@ def register_dns ():
   return res.ip
   
 def main():
-  with Socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
-    server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    server_socket.bind((SERVER_HOST, SERVER_PORT))
-    server_socket.listen(1)
-    
-    while not register_dns():
-      print("trying")
-    print("server ready")
+  while not register_dns():
+    print("trying")
+  print("server ready")
+  while True:
+    with Socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
+      server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+      server_socket.bind((SERVER_HOST, SERVER_PORT))
+      server_socket.listen(1)
 
-    while True:
-      with server_socket.accept()[0] as connection_socket:
+      connection_socket, client_adress = server_socket.accept()
+
+      while True:
         print("client accepted")
-        res = rcv_msg(connection_socket);
+        res = rcv_msg(connection_socket)
+        if not res:
+          break
         msg = handle(res);
-        send_msg(connection_socket, pickle.dumps(msg));
+        send_msg(connection_socket, pickle.dumps(msg))
+      connection_socket.close()
         
   return 0
 def handle (msg):

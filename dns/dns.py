@@ -18,22 +18,22 @@ class DNSPacket:
     self.alias = alias
     self.ip = ip
 
-MAXPACKETSZ = 512;
+MAXPACKETSZ = 512
 def rcv_msg (socket): # return pickle
   unpacker = struct.Struct('!i')
   tot = unpacker.unpack(socket.recv(4))[0]
   cur = 0
   data_string = b""
   while (cur < tot):
-    data = socket.recv(min(MAXPACKETSZ, tot-cur));
+    data = socket.recv(min(MAXPACKETSZ, tot-cur))
     data_string += data
-    cur += min(MAXPACKETSZ, tot-cur);
+    cur += min(MAXPACKETSZ, tot-cur)
   return pickle.loads(data_string)
 
 def send_msg (socket, data_string : str): # msg = pickle.dumps(msg)
   tot = len(data_string)
-  socket.send(struct.pack("!i", tot));
-  cur = 0;
+  socket.send(struct.pack("!i", tot))
+  cur = 0
   while (cur < tot):
     data = data_string[cur:cur+MAXPACKETSZ]
     socket.send(data)
@@ -52,9 +52,9 @@ def main():
     while True:
         data_string, client = server_socket.recvfrom(1024)
         print(client)
-        res = pickle.loads(data_string);
-        res = handle(res);
-        server_socket.sendto(pickle.dumps(res), client);
+        res = pickle.loads(data_string)
+        res = handle(res)
+        server_socket.sendto(pickle.dumps(res), client)
     
   return 0
   
@@ -62,15 +62,12 @@ mp = dict()
 def handle (msg):
   if (msg.ip == ""):
     if msg.alias in mp:
-      msg.ip = mp[msg.alias];
-    print("get "+msg.alias);
+      msg.ip = mp[msg.alias]
+    print("get "+msg.alias)
   else:
-    mp[msg.alias] = msg.ip;
-    print("registered " +msg.ip+" as "+msg.alias);
+    mp[msg.alias] = msg.ip
+    print("registered " +msg.ip+" as "+msg.alias)
   return msg
 
 if __name__ == "__main__":
   sys.exit(main())
-  
-  
-
