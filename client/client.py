@@ -7,7 +7,6 @@ import subprocess
 import struct
 import pickle
 from enum import Enum
-from contextlib import closing
 
 import time
 import os
