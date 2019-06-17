@@ -83,7 +83,6 @@ try:
   state = State.DISCONNECTED
   server_alias = "projectx.com"
   server_host = ""
-  #with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as clientSocket:
   while run:
     if (state == State.DISCONNECTED):
       indata = input().split()
@@ -126,9 +125,6 @@ try:
         continue
       else:
         continue
-      
-      # CONEXAO JA DEVE EXISTIR
-      
       print("sending...")
       send_msg(clientSocket, pickle.dumps(msg))
       print("receiving...")
