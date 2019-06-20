@@ -6,6 +6,7 @@ import pickle
 import itertools
 import subprocess
 from enum import Enum
+import threading
 from socket import socket as Socket
 
 MAX_PACKETS = 1512

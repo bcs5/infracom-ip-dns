@@ -15,7 +15,7 @@ def rcv_msg(socket): # return pickle
   data_string = b""
   print("Status: [", end = '')
   while (cur < tot):
-    print(str(cur // tot) + '%', end = '... ')
+    print(str(int(cur / tot *100)) + '%', end = '... ')
     data = socket.recv(min(MAX_PACKETS, tot - cur))
     data_string += data
     cur += min(MAX_PACKETS, tot - cur)
@@ -78,6 +78,9 @@ try:
           raise
         state = state.CONNECTED
         print("connected to " + server_host)
+      elif (cmd == "exit"):
+        run = 0
+        continue
     elif (state == State.CONNECTED):
       indata = input().split()
       if (len(indata) == 0):

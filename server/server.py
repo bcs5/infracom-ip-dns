@@ -57,25 +57,30 @@ def register_dns():
 def main():
   while not register_dns():
     print("trying")
-  print("server ready")
-  while True:
-    with Socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
-      server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-      server_socket.bind((SERVER_HOST, SERVER_PORT))
-      server_socket.listen(1)
+  with Socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
+    server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    server_socket.bind((SERVER_HOST, SERVER_PORT))
+    server_socket.listen(5)
 
-      connection_socket, client_adress = server_socket.accept()
-
-      while True:
-        print("client accepted")
-        res = rcv_msg(connection_socket)
-        if not res:
-          break
-        msg = handle(res);
-        send_msg(connection_socket, pickle.dumps(msg))
-      connection_socket.close()
-        
+    print("server ready")
+    while True:
+      c, address = server_socket.accept()
+      print("client accepted")
+      rcvth = threading.Thread(target=rcv_th, args=(c,))
+      rcvth.start();
+    connection_socket.close()
   return 0
+  
+def rcv_th (client_socket):
+  while True:
+    res = rcv_msg(client_socket)
+    if not res:
+      break
+    msg = handle(res);
+    send_msg(client_socket, pickle.dumps(msg))
+  client_socket.close();
+  return
+
 def handle (msg):
   res = ServerPacket()
   print(msg.cmd)
