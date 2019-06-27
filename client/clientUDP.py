@@ -70,7 +70,7 @@ def rcv_th (sck): # packets only
   while True:
     pkt, address = pktsqueue.get();
     pkt = unpack(pkt);
-    if (pkt.seq == seqB) :
+    if (pkt.seq == seqB):
       #print("rcved data {}".format(pkt.seq))
       rcvbuffer.put((pkt.data, address));
       seqB += 1

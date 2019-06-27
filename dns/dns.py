@@ -28,7 +28,6 @@ def handle (msg):
     if msg.alias in mp:
       msg.ip = mp[msg.alias]
     print("get "+msg.alias)
-    msg.ip = "127.0.0.1"
   else:
     mp[msg.alias] = msg.ip
     print("registered " +msg.ip+" as "+msg.alias)
