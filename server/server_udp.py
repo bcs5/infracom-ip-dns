@@ -137,6 +137,7 @@ class esocket:
     
     self.udpsendth = threading.Thread(target=self.udpsend_th)
     self.udpsendth.start();
+    print("server ready")
     
   def sendto (self, data, address):
     self.framesqueue.put((data, address))
@@ -169,10 +170,31 @@ class esocket:
           client.pktsqueue.put_nowait(pkt);
         except Exception:
           pass
+SERVER_ALIAS = "projectx.com"
+SERVER_HOST = "127.0.0.1"
+SERVER_PORT = 2080
 
+DNS_HOST = "127.0.0.1"
+DNS_PORT = 5000
+
+
+def register_dns():
+  dnssocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+  res = DNSPacket(SERVER_ALIAS, SERVER_HOST);
+  data_string = pickle.dumps(res)
+  
+  dnssocket.sendto(pickle.dumps(res), (DNS_HOST, DNS_PORT));
+  data = dnssocket.recvfrom(1024)[0];
+  res = DNSPacket("", "");
+  if (data) :
+    res = pickle.loads(data)
+  
+  dnssocket.close()
+  return res.ip
 def main():
-  SERVER_HOST = "127.0.0.1"
-  SERVER_PORT = 2080
+  while not register_dns():
+    print("trying")
   sck = socket.socket(socket.AF_INET, socket.SOCK_DGRAM);
   sck.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
   sck.bind((SERVER_HOST, SERVER_PORT));
