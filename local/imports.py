@@ -8,8 +8,12 @@ import subprocess
 from enum import Enum
 import threading
 from socket import socket as Socket
+from collections import namedtuple
+import queue
+import random
 
-MAX_PACKETS = 1512
+
+MAX_PACKETS = 1000
 
 class Command(Enum):
   LIST = 1
